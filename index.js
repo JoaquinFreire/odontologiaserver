@@ -18,7 +18,7 @@ console.log('JWT_SECRET:', process.env.JWT_SECRET ? 'definido' : 'NO DEFINIDO');
 console.log('PORT:', process.env.PORT);
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 
 // Middlewares
 app.use(cors({
