@@ -1,10 +1,10 @@
 {
   "name": "server",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "server/index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon --require ./preload.js index.js"
+    "start": "node server/index.js",
+    "dev": "nodemon --require ./preload.js server/index.js"
   },
   "keywords": [],
   "author": "",
