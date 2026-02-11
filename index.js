@@ -18,7 +18,7 @@ console.log('JWT_SECRET:', process.env.JWT_SECRET ? 'definido' : 'NO DEFINIDO');
 console.log('PORT:', process.env.PORT);
 
 const app = express();
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 3000;
 
 // Middlewares
 app.use(cors({
@@ -44,7 +44,7 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Algo salió mal!' });
 });
 
-// Iniciar servidor
-app.listen(PORT, () => {
-  console.log(`Servidor corriendo en puerto ${PORT}`);
+
+app.listen(PORT, '0.0.0.0', () => { // Agregamos '0.0.0.0'
+  console.log(`Servidor iniciado en puerto: ${PORT}`);
 });
