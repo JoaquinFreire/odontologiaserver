@@ -2,6 +2,32 @@
 // pero `dotenv` no interfiere si las variables ya están definidas.
 require('dotenv').config();
 // Nota: mantener `dotenv` permite pruebas locales con un archivo .env
+const fs = require('fs');
+const path = require('path');
+
+const _startupLog = path.join(process.cwd(), 'startup.log');
+
+function _writeStartup(msg) {
+  try {
+    fs.appendFileSync(_startupLog, `${new Date().toISOString()} - ${msg}\n`);
+  } catch (e) {
+    console.error('No se pudo escribir en startup.log:', e);
+  }
+}
+
+console.log('=== index.js cargado:', new Date().toISOString());
+_writeStartup('index.js cargado');
+process.on('uncaughtException', err => {
+  console.error('UNCAUGHT EXCEPTION:', err && err.stack ? err.stack : err);
+  _writeStartup('UNCAUGHT EXCEPTION: ' + (err && err.stack ? err.stack : String(err)));
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('UNHANDLED REJECTION:', reason);
+  _writeStartup('UNHANDLED REJECTION: ' + String(reason));
+});
+
 const express = require('express');
 const cors = require('cors');
 
