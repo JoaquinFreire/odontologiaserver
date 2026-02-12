@@ -1,5 +1,4 @@
-require('dotenv').config({ path: './.env' });
-
+// Eliminamos require('dotenv').config() porque Hostinger inyecta las variables desde el panel
 const express = require('express');
 const cors = require('cors');
 
@@ -9,22 +8,25 @@ const appointmentsRoutes = require('./routes/appointments.routes');
 const treatmentBudgetsRoutes = require('./routes/treatment-budgets.routes');
 
 console.log('=== INICIANDO SERVIDOR ===');
-console.log('Variables de entorno:');
-console.log('DB_HOST:', process.env.DB_HOST);
-console.log('DB_USER:', process.env.DB_USER);
-console.log('DB_PASSWORD:', process.env.DB_PASSWORD ? '***' : 'vacío');
-console.log('DB_NAME:', process.env.DB_NAME);
-console.log('JWT_SECRET:', process.env.JWT_SECRET ? 'definido' : 'NO DEFINIDO');
-console.log('PORT:', process.env.PORT);
+console.log('Variables de entorno detectadas:');
+console.log('DB_HOST:', process.env.DB_HOST || 'No definido');
+console.log('DB_NAME:', process.env.DB_NAME || 'No definido');
+console.log('PORT asignado por Hostinger:', process.env.PORT);
 
 const app = express();
+
+// El puerto debe ser dinámico. Hostinger lo asigna solo.
 const PORT = process.env.PORT || 3000;
 
-// Middlewares
+// Configuración de CORS estricta para producción
 app.use(cors({
-  origin: [process.env.FRONTEND_ORIGIN, process.env.BACKEND_ORIGIN],
+  origin: [
+    'https://odontologiahi.com', 
+    'https://api.odontologiahi.com'
+  ],
   credentials: true
 }));
+
 app.use(express.json());
 
 // Rutas
@@ -33,18 +35,22 @@ app.use('/api/patients', patientsRoutes);
 app.use('/api/appointments', appointmentsRoutes);
 app.use('/api/treatment-budgets', treatmentBudgetsRoutes);
 
-// Ruta de prueba
+// Ruta de salud para probar si el servidor responde
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: 'API funcionando correctamente' });
+  res.json({ 
+    status: 'OK', 
+    message: 'API funcionando correctamente en Hostinger',
+    timestamp: new Date().toISOString()
+  });
 });
 
-// Manejo de errores
+// Manejador de errores global
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Algo salió mal!' });
+  console.error('ERROR CRÍTICO:', err.stack);
+  res.status(500).json({ error: 'Error interno en el servidor' });
 });
 
-
-app.listen(PORT, '0.0.0.0', () => { // Agregamos '0.0.0.0'
-  console.log(`Servidor iniciado en puerto: ${PORT}`);
+// Iniciar servidor en 0.0.0.0 es fundamental en Hostinger
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Servidor corriendo con éxito en puerto: ${PORT}`);
 });
