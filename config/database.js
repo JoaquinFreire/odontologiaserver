@@ -1,30 +1,31 @@
-const express = require('express');
-const cors = require('cors');
+const mysql = require('mysql2/promise');
 
-// Importamos solo lo básico para que no falle si hay error en otros archivos
-const authRoutes = require('./routes/auth.routes');
+console.log('Configuración de DB desde database.js:', {
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD ? '***' : 'vacío',
+  database: process.env.DB_NAME,
+});
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+const pool = mysql.createPool({
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+});
 
-app.use(cors({
-  origin: ['https://odontologiahi.com', 'https://api.odontologiahi.com'],
-  credentials: true
-}));
-
-app.use(express.json());
-
-app.use('/api/auth', authRoutes);
-
-// La ruta que nos daba esperanza
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    message: 'API revivida',
-    timestamp: new Date().toISOString()
+// Probar conexión
+pool.getConnection()
+  .then(connection => {
+    console.log('✅ Conexión a MySQL exitosa');
+    connection.release();
+  })
+  .catch(err => {
+    console.error('❌ Error de conexión a MySQL:', err.message);
   });
-});
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Servidor iniciado en puerto: ${PORT}`);
-});
+module.exports = pool;
