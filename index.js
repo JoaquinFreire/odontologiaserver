@@ -1,10 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 
+// Importante: Revisa que estas rutas existan en tus carpetas
 const authRoutes = require('./routes/auth.routes');
 const patientsRoutes = require('./routes/patients.routes');
-const appointmentsRoutes = require('./routes/appointments.routes');
-const treatmentBudgetsRoutes = require('./routes/treatment-budgets.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -16,20 +15,14 @@ app.use(cors({
 
 app.use(express.json());
 
-// Rutas
 app.use('/api/auth', authRoutes);
 app.use('/api/patients', patientsRoutes);
-app.use('/api/appointments', appointmentsRoutes);
-app.use('/api/treatment-budgets', treatmentBudgetsRoutes);
 
+// Ruta de salud
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    message: 'API funcionando correctamente',
-    timestamp: new Date().toISOString()
-  });
+  res.json({ status: 'OK', message: 'Servidor revivido' });
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`✅ Servidor en puerto: ${PORT}`);
+  console.log(`Servidor corriendo en puerto ${PORT}`);
 });
