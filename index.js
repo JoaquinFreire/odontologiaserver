@@ -62,6 +62,30 @@ app.use(cors({
 
 app.use(express.json());
 
+// Registrador simple de peticiones — escribe método, ruta y parte del body a `startup.log`
+app.use((req, res, next) => {
+  try {
+    const shortBody = req.body && Object.keys(req.body).length ? JSON.stringify(req.body).slice(0, 1000) : '';
+    const msg = `${req.method} ${req.originalUrl} ${shortBody}`;
+    console.log('REQ:', msg);
+    _writeStartup('REQ: ' + msg);
+  } catch (e) {
+    console.error('Error registrando petición:', e);
+  }
+  next();
+});
+
+// Endpoint para revisar el `startup.log` en caso de necesitarlo. Requiere definir DEBUG_KEY en env.
+if (process.env.DEBUG_KEY) {
+  app.get('/internal/startup-log', (req, res) => {
+    if (req.query.key !== process.env.DEBUG_KEY) return res.status(403).send('Forbidden');
+    fs.readFile(_startupLog, 'utf8', (err, data) => {
+      if (err) return res.status(500).send('No startup log');
+      res.type('text/plain').send(data);
+    });
+  });
+}
+
 // Rutas
 app.use('/api/auth', authRoutes);
 app.use('/api/patients', patientsRoutes);
@@ -80,8 +104,18 @@ app.get('/api/health', (req, res) => {
 
 // Manejador de errores global
 app.use((err, req, res, next) => {
-  console.error('ERROR CRÍTICO:', err.stack);
-  res.status(500).json({ error: 'Error interno en el servidor' });
+  try {
+    const errId = Date.now().toString(36);
+    const stack = err && err.stack ? err.stack : String(err);
+    console.error('ERROR CRÍTICO:', stack, 'ID:', errId);
+    _writeStartup(`ERROR ${errId}: ${stack}`);
+    const payload = { error: 'Error interno en el servidor', id: errId };
+    if (process.env.NODE_ENV !== 'production') payload.stack = stack;
+    res.status(500).json(payload);
+  } catch (e) {
+    console.error('Error manejando el error:', e);
+    res.status(500).json({ error: 'Error interno en el servidor' });
+  }
 });
 
 // Iniciar servidor en 0.0.0.0 es fundamental en Hostinger

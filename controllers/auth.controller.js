@@ -4,64 +4,52 @@ const pool = require('../config/database');
 
 const login = async (req, res) => {
   try {
-    console.log('=== INICIANDO LOGIN ===');
     const { email, password } = req.body;
-    console.log('Email recibido:', email);
 
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email y contraseña son requeridos' });
+      return res.status(400).json({ error: 'Faltan datos' });
     }
 
-    // Buscar usuario por email
-    console.log('Ejecutando consulta SQL...');
+    // PASO 1: Verificar conexión y tabla
+    // Usamos `user` porque así se ve en tu foto de DBeaver
     const [users] = await pool.execute(
-      'SELECT id, email, password_hash, name, lastname, tuition FROM user WHERE email = ?',
+      'SELECT * FROM user WHERE email = ?',
       [email]
     );
-    console.log('Resultado de consulta:', users);
 
     if (users.length === 0) {
-      console.log('Usuario no encontrado');
-      return res.status(401).json({ error: 'Credenciales inválidas' });
+      return res.status(401).json({ error: 'Usuario no encontrado (Revisar tabla user)' });
     }
 
     const user = users[0];
-    console.log('Usuario encontrado:', { id: user.id, email: user.email });
 
-    // Verificar contraseña
-    console.log('Verificando contraseña...');
-    const isValidPassword = await bcrypt.compare(password, user.password_hash);
-    console.log('Contraseña válida:', isValidPassword);
+    // PASO 2: Verificar contraseña
+    // IMPORTANTE: Asegurate que en tu BD la columna sea password_hash
+    // Si en tu BD la columna es 'password', cambia user.password_hash por user.password
+    const validPassword = await bcrypt.compare(password, user.password_hash);
 
-    if (!isValidPassword) {
-      console.log('Contraseña incorrecta');
-      return res.status(401).json({ error: 'Credenciales inválidas' });
+    if (!validPassword) {
+      return res.status(401).json({ error: 'Contraseña incorrecta' });
     }
 
-    // Generar JWT
-    console.log('Generando JWT...');
+    // PASO 3: Token
     const token = jwt.sign(
       { id: user.id, email: user.email },
-      process.env.JWT_SECRET,
+      process.env.JWT_SECRET || 'secreto_temporal', // Fallback por si la variable falla
       { expiresIn: '24h' }
     );
-    console.log('JWT generado correctamente');
 
-    // Remover password del response
-    delete user.password;
+    res.json({ token, user: { id: user.id, email: user.email } });
 
-    console.log('Login exitoso para:', user.email);
-    res.json({
-      user,
-      token
-    });
   } catch (error) {
-    console.error('Error en login:', error);
-    console.error('Stack trace:', error.stack);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    // ESTO ES LO QUE NECESITAMOS: Devolver el error real al Postman
+    res.status(500).json({
+      error: 'Error SQL o de Código',
+      detalle: error.message, // <--- Esto nos dirá qué columna o tabla falta
+      sqlMessage: error.sqlMessage
+    });
   }
 };
-
 const register = async (req, res) => {
   try {
     const { email, password, name, lastname, tuition } = req.body;
