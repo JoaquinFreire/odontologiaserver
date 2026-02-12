@@ -1,6 +1,9 @@
-// Cargar variables de entorno localmente. Hostinger inyecta sus propias vars en producción,
-// pero `dotenv` no interfiere si las variables ya están definidas.
-require('dotenv').config({ path: './.env' });
+// Cargar variables de entorno. En Hostinger, priority: variables injected > .env.production > .env
+const isProduction = process.env.NODE_ENV === 'production' || process.env.HOSTINGER === 'true';
+if (isProduction) {
+  require('dotenv').config({ path: './.env.production' });
+}
+require('dotenv').config({ path: './.env' }); // Fallback a .env local
 
 // Sistema de logging a archivo para debuggear en Hostinger
 const fs = require('fs');
@@ -49,7 +52,25 @@ console.log('JWT_SECRET:', process.env.JWT_SECRET ? 'definido' : 'NO DEFINIDO');
 console.log('PORT:', process.env.PORT);
 
 const app = express();
+
+// Puerto: En Hostinger, usar el asignado dinámicamente. En local, defaultear a 8080
+// Hostinger inyecta PORT en el proceso, así que process.env.PORT tendrá prioridad
 const PORT = process.env.PORT || 8080;
+
+console.log('=== CONFIGURACIÓN DETECTADA ===');
+console.log('NODE_ENV:', process.env.NODE_ENV || 'development');
+console.log('Ambiente:', isProduction ? 'PRODUCCIÓN (Hostinger)' : 'DESARROLLO');
+console.log('Puerto detectado:', PORT);
+console.log('DB_HOST:', process.env.DB_HOST || 'NO DEFINIDO');
+console.log('JWT_SECRET:', process.env.JWT_SECRET ? 'definido' : 'NO DEFINIDO');
+console.log('FRONTEND_ORIGIN:', process.env.FRONTEND_ORIGIN || 'NO DEFINIDO');
+console.log('BACKEND_ORIGIN:', process.env.BACKEND_ORIGIN || 'NO DEFINIDO');
+
+// Escribir configuración inicial al log
+_writeStartup(`Ambiente: ${isProduction ? 'PRODUCCIÓN' : 'DESARROLLO'}, Puerto: ${PORT}`);
+_writeStartup(`FRONTEND_ORIGIN: ${process.env.FRONTEND_ORIGIN || 'NO DEFINIDO'}`);
+_writeStartup(`BACKEND_ORIGIN: ${process.env.BACKEND_ORIGIN || 'NO DEFINIDO'}`);
+_writeStartup(`DB_HOST: ${process.env.DB_HOST || 'NO DEFINIDO'}`);
 
 // Middlewares
 app.use(cors({
@@ -81,6 +102,34 @@ if (process.env.DEBUG_KEY) {
     });
   });
 }
+
+// Endpoint para verificar variables de entorno configuradas (sin exponer valores sensibles)
+app.get('/internal/env-check', (req, res) => {
+  if (req.query.key !== process.env.DEBUG_KEY) {
+    return res.status(403).json({ error: 'Forbidden - define DEBUG_KEY en variables de entorno' });
+  }
+  res.json({
+    timestamp: new Date().toISOString(),
+    nodeEnv: process.env.NODE_ENV || 'development',
+    ambiente: isProduction ? 'PRODUCCIÓN' : 'DESARROLLO',
+    puerto: PORT,
+    db: {
+      host: process.env.DB_HOST ? '✅ definido' : '❌ NO DEFINIDO',
+      user: process.env.DB_USER ? '✅ definido' : '❌ NO DEFINIDO',
+      password: process.env.DB_PASSWORD ? '✅ definido' : '❌ NO DEFINIDO',
+      database: process.env.DB_NAME ? '✅ definido' : '❌ NO DEFINIDO',
+      port: process.env.DB_PORT || 'NO DEFINIDO'
+    },
+    auth: {
+      jwtSecret: process.env.JWT_SECRET ? '✅ definido' : '❌ NO DEFINIDO'
+    },
+    cors: {
+      frontendOrigin: process.env.FRONTEND_ORIGIN || '❌ NO DEFINIDO',
+      backendOrigin: process.env.BACKEND_ORIGIN || '❌ NO DEFINIDO'
+    },
+    mensaje: 'Todos los campos con ✅ están correctamente configurados'
+  });
+});
 
 // Rutas
 app.use('/api/auth', authRoutes);
