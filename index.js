@@ -192,6 +192,31 @@ app.get('/internal/env-check', (req, res) => {
   });
 });
 
+// ENDPOINT DEBUG TEMPORAL (sin autenticación, para diagnóstico)
+// TODO: ELIMINAR ANTES DE PRODUCCIÓN FINAL
+app.get('/internal/debug-info', (req, res) => {
+  _writeStartup('DEBUG: /internal/debug-info fue llamado');
+  const pool = require('./config/database'); // Test connection
+  
+  res.json({
+    timestamp: new Date().toISOString(),
+    info: '⚠️ ENDPOINT DEBUG TEMPORAL - ELIMINAR ANTES DE PRODUCCIÓN',
+    environment: {
+      NODE_ENV: process.env.NODE_ENV || 'undefined',
+      PORT: PORT,
+      isProduction: isProduction,
+      DB_HOST: process.env.DB_HOST || 'undefined',
+      DB_USER: process.env.DB_USER || 'undefined',
+      DB_NAME: process.env.DB_NAME || 'undefined',
+      DB_PORT: process.env.DB_PORT || 'undefined',
+      JWT_SECRET_DEFINED: !!process.env.JWT_SECRET,
+      DEBUG_KEY_DEFINED: !!process.env.DEBUG_KEY,
+      FRONTEND_ORIGIN: process.env.FRONTEND_ORIGIN || 'undefined',
+      BACKEND_ORIGIN: process.env.BACKEND_ORIGIN || 'undefined'
+    }
+  });
+});
+
 // Rutas
 try {
   if (authRoutes) app.use('/api/auth', authRoutes);
