@@ -1,4 +1,7 @@
-// Eliminamos require('dotenv').config() porque Hostinger inyecta las variables desde el panel
+// Cargar variables de entorno localmente. Hostinger inyecta sus propias vars en producción,
+// pero `dotenv` no interfiere si las variables ya están definidas.
+require('dotenv').config();
+// Nota: mantener `dotenv` permite pruebas locales con un archivo .env
 const express = require('express');
 const cors = require('cors');
 
@@ -15,15 +18,19 @@ console.log('PORT asignado por Hostinger:', process.env.PORT);
 
 const app = express();
 
-// El puerto debe ser dinámico. Hostinger lo asigna solo.
+// El puerto debe ser dinámico. Hostinger lo asigna.
 const PORT = process.env.PORT || 3000;
 
-// Configuración de CORS estricta para producción
+// Configuración de CORS: en desarrollo aceptar cualquier origen, en producción restringir.
+const allowedOrigins = process.env.NODE_ENV === 'production'
+  ? [
+      'https://odontologiahi.com',
+      'https://api.odontologiahi.com'
+    ]
+  : true;
+
 app.use(cors({
-  origin: [
-    'https://odontologiahi.com', 
-    'https://api.odontologiahi.com'
-  ],
+  origin: allowedOrigins,
   credentials: true
 }));
 
@@ -43,6 +50,7 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
 
 // Manejador de errores global
 app.use((err, req, res, next) => {
