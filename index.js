@@ -1,11 +1,4 @@
-// Cargar variables de entorno. En Hostinger, priority: variables injected > .env.production > .env
-const isProduction = process.env.NODE_ENV === 'production' || process.env.HOSTINGER === 'true';
-if (isProduction) {
-  require('dotenv').config({ path: './.env.production' });
-}
-require('dotenv').config({ path: './.env' }); // Fallback a .env local
-
-// Sistema de logging a archivo para debuggear en Hostinger
+// ⚠️ LOGGING MUY TEMPRANO - antes de cualquier require que pueda fallar
 const fs = require('fs');
 const path = require('path');
 
@@ -18,6 +11,36 @@ function _writeStartup(msg) {
     console.error('No se pudo escribir en startup.log:', e);
   }
 }
+
+// Escribir INMEDIATAMENTE para verificar que index.js se ejecuta
+_writeStartup('========== INICIANDO APP ==========');
+_writeStartup(`Timestamp: ${new Date().toISOString()}`);
+_writeStartup(`NODE_ENV: ${process.env.NODE_ENV || 'undefined'}`);
+_writeStartup(`CWD: ${process.cwd()}`);
+_writeStartup(`Cargando variables de entorno...`);
+
+// Cargar variables de entorno. En Hostinger, priority: variables injected > .env.production > .env
+const isProduction = process.env.NODE_ENV === 'production' || process.env.HOSTINGER === 'true';
+_writeStartup(`isProduction: ${isProduction}`);
+
+try {
+  if (isProduction) {
+    _writeStartup('Leyendo .env.production...');
+    require('dotenv').config({ path: './.env.production' });
+  }
+  _writeStartup('Leyendo .env...');
+  require('dotenv').config({ path: './.env' }); // Fallback a .env local
+  _writeStartup('Variables de entorno cargadas exitosamente');
+} catch (err) {
+  _writeStartup('ERROR cargando variables de entorno: ' + String(err));
+  console.error('ERROR en dotenv:', err);
+}
+
+_writeStartup(`DB_HOST: ${process.env.DB_HOST || 'undefined'}`);
+_writeStartup(`DB_USER: ${process.env.DB_USER || 'undefined'}`);
+_writeStartup(`DB_NAME: ${process.env.DB_NAME || 'undefined'}`);
+_writeStartup(`JWT_SECRET: ${process.env.JWT_SECRET ? 'defined' : 'undefined'}`);
+_writeStartup(`NODE_ENV: ${process.env.NODE_ENV || 'undefined'}`);
 
 console.log('=== index.js cargado:', new Date().toISOString());
 _writeStartup('index.js cargado');
@@ -37,10 +60,41 @@ process.on('unhandledRejection', (reason) => {
 const express = require('express');
 const cors = require('cors');
 
-const authRoutes = require('./routes/auth.routes');
-const patientsRoutes = require('./routes/patients.routes');
-const appointmentsRoutes = require('./routes/appointments.routes');
-const treatmentBudgetsRoutes = require('./routes/treatment-budgets.routes');
+_writeStartup('Loading routes...');
+
+let authRoutes, patientsRoutes, appointmentsRoutes, treatmentBudgetsRoutes;
+
+try {
+  authRoutes = require('./routes/auth.routes');
+  _writeStartup('✅ authRoutes loaded');
+} catch (err) {
+  _writeStartup('❌ ERROR loading authRoutes: ' + String(err));
+  console.error('Error loading authRoutes:', err);
+}
+
+try {
+  patientsRoutes = require('./routes/patients.routes');
+  _writeStartup('✅ patientsRoutes loaded');
+} catch (err) {
+  _writeStartup('❌ ERROR loading patientsRoutes: ' + String(err));
+  console.error('Error loading patientsRoutes:', err);
+}
+
+try {
+  appointmentsRoutes = require('./routes/appointments.routes');
+  _writeStartup('✅ appointmentsRoutes loaded');
+} catch (err) {
+  _writeStartup('❌ ERROR loading appointmentsRoutes: ' + String(err));
+  console.error('Error loading appointmentsRoutes:', err);
+}
+
+try {
+  treatmentBudgetsRoutes = require('./routes/treatment-budgets.routes');
+  _writeStartup('✅ treatmentBudgetsRoutes loaded');
+} catch (err) {
+  _writeStartup('❌ ERROR loading treatmentBudgetsRoutes: ' + String(err));
+  console.error('Error loading treatmentBudgetsRoutes:', err);
+}
 
 console.log('=== INICIANDO SERVIDOR ===');
 console.log('Variables de entorno:');
@@ -73,10 +127,17 @@ _writeStartup(`BACKEND_ORIGIN: ${process.env.BACKEND_ORIGIN || 'NO DEFINIDO'}`);
 _writeStartup(`DB_HOST: ${process.env.DB_HOST || 'NO DEFINIDO'}`);
 
 // Middlewares
-app.use(cors({
-  origin: [process.env.FRONTEND_ORIGIN, process.env.BACKEND_ORIGIN],
-  credentials: true
-}));
+try {
+  app.use(cors({
+    origin: [process.env.FRONTEND_ORIGIN, process.env.BACKEND_ORIGIN],
+    credentials: true
+  }));
+  _writeStartup('✅ CORS configured');
+} catch (err) {
+  _writeStartup('❌ ERROR configuring CORS: ' + String(err));
+  console.error('Error configuring CORS:', err);
+}
+
 app.use(express.json());
 
 // Registrador simple de peticiones — escribe método, ruta y parte del body a `startup.log`
@@ -132,10 +193,16 @@ app.get('/internal/env-check', (req, res) => {
 });
 
 // Rutas
-app.use('/api/auth', authRoutes);
-app.use('/api/patients', patientsRoutes);
-app.use('/api/appointments', appointmentsRoutes);
-app.use('/api/treatment-budgets', treatmentBudgetsRoutes);
+try {
+  if (authRoutes) app.use('/api/auth', authRoutes);
+  if (patientsRoutes) app.use('/api/patients', patientsRoutes);
+  if (appointmentsRoutes) app.use('/api/appointments', appointmentsRoutes);
+  if (treatmentBudgetsRoutes) app.use('/api/treatment-budgets', treatmentBudgetsRoutes);
+  _writeStartup('✅ All routes registered');
+} catch (err) {
+  _writeStartup('❌ ERROR registering routes: ' + String(err));
+  console.error('Error registering routes:', err);
+}
 
 // Ruta de prueba
 app.get('/api/health', (req, res) => {
@@ -159,7 +226,22 @@ app.use((err, req, res, next) => {
 });
 
 // Iniciar servidor en 0.0.0.0 es fundamental en Hostinger
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`✅ Servidor corriendo con éxito en puerto: ${PORT}`);
-  _writeStartup(`Servidor escuchando en puerto ${PORT}`);
-});
+_writeStartup(`Intentando iniciar servidor en puerto ${PORT}...`);
+
+try {
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    const msg = `✅ Servidor corriendo con éxito en puerto: ${PORT}`;
+    console.log(msg);
+    _writeStartup(msg);
+    _writeStartup('========== SERVIDOR LISTO ==========');
+  });
+  
+  server.on('error', (err) => {
+    _writeStartup('❌ SERVER ERROR: ' + String(err));
+    console.error('Server error:', err);
+  });
+} catch (err) {
+  _writeStartup('❌ ERROR iniciando servidor: ' + String(err));
+  console.error('Error starting server:', err);
+  process.exit(1);
+}
