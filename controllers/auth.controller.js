@@ -1,64 +1,94 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/database');
+const fs = require('fs');
+const path = require('path');
+
+// Para logging
+const _startupLog = path.join(process.cwd(), 'startup.log');
+function _writeLog(msg) {
+  try {
+    fs.appendFileSync(_startupLog, `AUTH: ${new Date().toISOString()} - ${msg}\n`);
+  } catch (e) {
+    console.error('Error escribiendo log:', e);
+  }
+}
 
 const login = async (req, res) => {
+  const errId = Date.now().toString(36);
   try {
     console.log('=== INICIANDO LOGIN ===');
+    _writeLog(`LOGIN attempt, errId: ${errId}`);
     const { email, password } = req.body;
     console.log('Email recibido:', email);
+    _writeLog(`Email: ${email}`);
 
     if (!email || !password) {
+      _writeLog(`Missing email or password`);
       return res.status(400).json({ error: 'Email y contraseña son requeridos' });
     }
 
     // Buscar usuario por email
     console.log('Ejecutando consulta SQL...');
+    _writeLog(`Executing query for email: ${email}`);
     const [users] = await pool.execute(
       'SELECT id, email, password_hash, name, lastname, tuition FROM user WHERE email = ?',
       [email]
     );
     console.log('Resultado de consulta:', users);
+    _writeLog(`Query result: ${users.length} user(s) found`);
 
     if (users.length === 0) {
       console.log('Usuario no encontrado');
+      _writeLog(`User not found for email: ${email}`);
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
 
     const user = users[0];
     console.log('Usuario encontrado:', { id: user.id, email: user.email });
+    _writeLog(`User found: id=${user.id}, email=${user.email}`);
 
     // Verificar contraseña
     console.log('Verificando contraseña...');
+    _writeLog(`Comparing password...`);
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
     console.log('Contraseña válida:', isValidPassword);
+    _writeLog(`Password valid: ${isValidPassword}`);
 
     if (!isValidPassword) {
       console.log('Contraseña incorrecta');
+      _writeLog(`Invalid password for user ${user.email}`);
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
 
     // Generar JWT
     console.log('Generando JWT...');
+    _writeLog(`Generating JWT...`);
     const token = jwt.sign(
       { id: user.id, email: user.email },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
     console.log('JWT generado correctamente');
+    _writeLog(`JWT generated successfully`);
 
     // Remover password del response
+    delete user.password_hash;
     delete user.password;
 
     console.log('Login exitoso para:', user.email);
+    _writeLog(`Login successful for: ${user.email}`);
     res.json({
       user,
       token
     });
   } catch (error) {
+    const errId = Date.now().toString(36);
     console.error('Error en login:', error);
     console.error('Stack trace:', error.stack);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    _writeLog(`ERROR ${errId}: ${error.message}`);
+    _writeLog(`Stack: ${error.stack}`);
+    res.status(500).json({ error: 'Error interno del servidor', id: errId });
   }
 };
 
