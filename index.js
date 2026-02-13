@@ -217,6 +217,31 @@ app.get('/internal/debug-info', (req, res) => {
   });
 });
 
+// ENDPOINT PARA VER ERROR ESPECÍFICO POR ID (sin autenticación, temporal para debug)
+app.get('/internal/error-log/:id', (req, res) => {
+  const errorId = req.params.id;
+  _writeStartup(`DEBUG: /internal/error-log/${errorId} fue llamado`);
+  
+  fs.readFile(_startupLog, 'utf8', (err, data) => {
+    if (err) {
+      return res.status(500).json({ error: 'No se pudo leer el log', details: err.message });
+    }
+    
+    const lines = data.split('\n');
+    const errorLines = lines.filter(line => line.includes(`ERROR ${errorId}:`) || line.includes(`AUTH: ...`) && line.includes(errorId));
+    
+    if (errorLines.length === 0) {
+      return res.status(404).json({ error: `No se encontró error con ID: ${errorId}`, searchedId: errorId });
+    }
+    
+    res.json({
+      id: errorId,
+      errors: errorLines,
+      info: '⚠️ Este endpoint es temporal para debugging. Eliminar antes de producción.'
+    });
+  });
+});
+
 // Rutas
 try {
   if (authRoutes) app.use('/api/auth', authRoutes);
