@@ -153,12 +153,12 @@ const updateProfile = async (req, res) => {
   try {
     console.log('=== ACTUALIZANDO PERFIL ===');
     const userId = req.user.id;
-    const { email, tuition } = req.body;
-    console.log('userId:', userId, 'email:', email, 'tuition:', tuition);
+    const { email, name, lastname, tuition } = req.body;
+    console.log('userId:', userId, 'email:', email, 'name:', name, 'lastname:', lastname, 'tuition:', tuition);
 
     // Verificar que el email no esté tomado por otro usuario
     console.log('Verificando email duplicado...');
-    const [existing] = await pool.execute('SELECT id FROM users WHERE email = ? AND id != ?', [email, userId]);
+    const [existing] = await pool.execute('SELECT id FROM user WHERE email = ? AND id != ?', [email, userId]);
     console.log('Usuarios con email existente:', existing.length);
     if (existing.length > 0) {
       console.log('Email ya en uso');
@@ -166,7 +166,7 @@ const updateProfile = async (req, res) => {
     }
 
     console.log('Actualizando perfil...');
-    await pool.execute('UPDATE users SET email = ?, tuition = ? WHERE id = ?', [email, tuition, userId]);
+    await pool.execute('UPDATE user SET email = ?, name = ?, lastname = ?, tuition = ? WHERE id = ?', [email, name, lastname, tuition, userId]);
 
     console.log('Perfil actualizado correctamente');
     res.json({ message: 'Perfil actualizado correctamente' });
@@ -175,7 +175,6 @@ const updateProfile = async (req, res) => {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
-
 module.exports = {
   login,
   register,
