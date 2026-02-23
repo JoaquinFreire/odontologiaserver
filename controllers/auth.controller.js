@@ -175,9 +175,38 @@ const updateProfile = async (req, res) => {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
+const refreshToken = async (req, res) => {
+  try {
+    console.log('=== REFRESH TOKEN ===');
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'No token provided' });
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      // Token expirado, intenta decodificarlo sin verificar
+      decoded = jwt.decode(token);
+      if (!decoded) return res.status(401).json({ error: 'Invalid token' });
+    }
+
+    // Generar nuevo token
+    const newToken = jwt.sign(
+      { id: decoded.id, email: decoded.email },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    res.json({ token: newToken });
+  } catch (error) {
+    console.error('Error al refrescar token:', error);
+    res.status(401).json({ error: 'Token refresh failed' });
+  }
+};
 module.exports = {
   login,
   register,
   getProfile,
-  updateProfile
+  updateProfile,
+  refreshToken
 };
